@@ -1,5 +1,7 @@
 # Historia Pojazdu dla Home Assistant
 
+![Logo Historia Pojazdu](https://raw.githubusercontent.com/jarekgrzabel/ha-historia-pojazdu/main/custom_components/historia_pojazdu/brand/icon.png)
+
 Nieoficjalna integracja odczytuje datę ważności OC i następnego badania technicznego z Historia Pojazdu. Nie wymaga MQTT, dodatku ani sterowania przeglądarką. Kod protokołu i parser powstały na podstawie [historia-pojazdu-sdk](https://github.com/Korea77/historia-pojazdu-sdk), commit `1f4c496ef728011903b308dfa90d74409da05740`; udostępniane są na licencji GPL-3.0 (plik LICENSE).
 
 ## Instalacja i konfiguracja
