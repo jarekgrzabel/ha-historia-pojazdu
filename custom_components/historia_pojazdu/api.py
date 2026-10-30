@@ -1,0 +1,108 @@
+"""Unofficial Historia Pojazdu protocol and conservative timeline parser.
+
+Based on Korea77/historia-pojazdu-sdk, commit 1f4c496ef728011903b308dfa90d74409da05740.
+GPL-3.0; see the repository LICENSE.
+"""
+from __future__ import annotations
+
+import asyncio
+import re
+import time
+from datetime import date, datetime
+from typing import Any
+
+import aiohttp
+
+_URL = 'https://moj.gov.pl/nforms/engine/ng/index?xFormsAppName=HistoriaPojazdu'
+_API = 'https://moj.gov.pl/nforms/api/HistoriaPojazdu/1.0.20/data/timeline-data'
+_EXPIRY = re.compile(r'ważne\s+do\s+(\d{2}\.\d{2}\.\d{4})', re.IGNORECASE)
+
+
+class FetchError(Exception):
+    """Sanitized failure; never includes credentials or server response."""
+
+
+def _date(value: Any, fmt: str) -> date | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.strptime(value.strip(), fmt).date()
+    except ValueError:
+        return None
+
+
+def parse_report(report: Any) -> tuple[date | None, date | None]:
+    """Return independent dates, or None for missing/ambiguous values.
+
+    A newer inspection without a valid expiry invalidates an older expiry.
+    Select the latest event by event date, not latest expiry.
+    """
+    if not isinstance(report, dict) or not isinstance(report.get('timelineData'), dict):
+        raise FetchError('Nieprawidłowa odpowiedź usługi')
+    timeline = report['timelineData']
+    insurance = _date(timeline.get('insuranceExpiryDate'), '%Y-%m-%d')
+    events = timeline.get('events')
+    if not isinstance(events, list):
+        return insurance, None
+    candidates: list[tuple[date, date | None]] = []
+    ambiguous = False
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        kind = event.get('eventType')
+        if kind not in ('pierwsza-rejestracja-w-polsce', 'badanie-techniczne-okresowe', 'badanie-techniczne'):
+            continue
+        event_date = _date(event.get('eventDate'), '%Y-%m-%d') or _date(event.get('eventDate'), '%d.%m.%Y')
+        expiry = None
+        if kind == 'pierwsza-rejestracja-w-polsce':
+            details = event.get('eventDetails')
+            if isinstance(details, list):
+                dates = [_date(item.get('value'), '%d.%m.%Y') for item in details
+                         if isinstance(item, dict) and item.get('name') == 'Termin następnego badania technicznego']
+                valid = [d for d in dates if d is not None]
+                if len(dates) == 1 and len(valid) == 1:
+                    expiry = valid[0]
+        else:
+            name = event.get('eventName')
+            matches = _EXPIRY.findall(name) if isinstance(name, str) else []
+            if len(matches) == 1:
+                expiry = _date(matches[0], '%d.%m.%Y')
+        if event_date is None:
+            # An unorderable relevant event may be newer than the known event.
+            ambiguous = True
+        else:
+            candidates.append((event_date, expiry))
+    if ambiguous or not candidates:
+        return insurance, None
+    newest = max(d for d, _ in candidates)
+    same_day = [expiry for event_day, expiry in candidates if event_day == newest]
+    # Multiple contradictory events on the same date cannot be ordered safely.
+    inspection = same_day[0] if same_day and all(x == same_day[0] for x in same_day) else None
+    return insurance, inspection
+
+
+async def fetch_report(registration: str, vin: str, first_registration: str) -> tuple[date | None, date | None]:
+    """Use a fresh TLS-verified session with bounded timeout and retry delay."""
+    timeout = aiohttp.ClientTimeout(total=15, connect=6)
+    for attempt in range(3):
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                wid = f'HistoriaPojazdu:{int(time.time() * 1000)}'
+                headers = {'User-Agent': 'Mozilla/5.0', 'Origin': 'https://moj.gov.pl', 'Referer': _URL}
+                async with session.post(_URL, data={'NF_WID': wid}, headers=headers) as response:
+                    response.raise_for_status()
+                    cookie = response.cookies.get('XSRF-TOKEN')
+                    if cookie is None or not cookie.value:
+                        raise FetchError('Brak tokenu usługi')
+                    token = cookie.value
+                headers.update({'X-XSRF-TOKEN': token, 'NF_WID': wid})
+                async with session.post(_API, json={'registrationNumber': registration, 'VINNumber': vin,
+                                        'firstRegistrationDate': first_registration}, headers=headers) as response:
+                    response.raise_for_status()
+                    report = await response.json(content_type=None)
+                return parse_report(report)
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, FetchError) as exc:
+            if attempt == 2:
+                raise FetchError('Nie udało się pobrać lub odczytać danych usługi') from None
+            await asyncio.sleep(2 ** attempt)
+    raise FetchError('Nie udało się pobrać danych')
