@@ -13,11 +13,13 @@ Nieoficjalna integracja odczytuje datę ważności OC i następnego badania tech
 
 Integracja udostępnia sensory ważności OC, następnego badania technicznego, ostatniej w pełni udanej aktualizacji i stanu pobierania oraz przycisk Odśwież dane. Identyfikatory są stabilne w obrębie wpisu integracji. Wartości pobierane są podczas uruchomienia wpisu w tle i co 24 godziny, a także po naciśnięciu przycisku. Godzina aktualizacji zależy od działania HA; udane jednorazowe pobranie nie dowodzi działania całego dobowego harmonogramu.
 
+Sensor ostatniego stanu licznika z badania pokazuje najnowszy dostępny odczyt z badania technicznego oraz jego datę w atrybucie `data_odczytu`. Odczyty z kontroli drogowej nie są uwzględniane. Nie jest to bieżący przebieg pojazdu. Brak odczytu oznacza stan nieznany; poprzedni poprawny wynik zostaje zachowany po awarii lub restarcie, a atrybut `aktualnosc` wskazuje jego status. Odczyt pochodzi z tego samego zapytania co pozostałe dane. Format danych badania nie został jeszcze potwierdzony rzeczywistą odpowiedzią usługi, więc obsługa przebiegu ma charakter wstępny.
+
 Każdy sensor daty ma atrybut `aktualnosc`: `aktualne` po udanym pobraniu danej daty albo `zapisane lub nieaktualne`, gdy dane przywrócono z zapisu lub pobranie tej daty nie powiodło się. Sensor stanu opisuje problem. Czas ostatniej udanej aktualizacji oznacza pobranie obu dat; aktualizacja częściowa go nie zmienia. Nieznana data OC nie oznacza braku polisy. Zapisane daty są przechowywane w lokalnej pamięci HA po restarcie i nie są usuwane w razie błędu. Jeśli ostatnie zdarzenie badania nie zawiera jednoznacznego terminu, poprzedni termin nie zostanie potraktowany jako świeży.
 
 ## Bezpieczeństwo i ograniczenia
 
-Połączenia HTTPS weryfikują certyfikat. Każda próba ma ograniczony czas, a kolejne próby są rozdzielone odstępami. Wpis integracji zawiera podane dane pojazdu; chroń dostęp do konfiguracji i kopii zapasowych HA. Do pamięci trwałej trafiają wyłącznie daty oraz czas aktualizacji. Integracja nie zapisuje pełnych raportów, tokenów ani VIN w zwykłych logach. Interfejs serwisu jest nieoficjalny i może ulec zmianie; nie należy traktować integracji jako jedynego potwierdzenia ważności dokumentów.
+Połączenia HTTPS weryfikują certyfikat. Każda próba ma ograniczony czas, a kolejne próby są rozdzielone odstępami. Wpis integracji zawiera podane dane pojazdu; chroń dostęp do konfiguracji i kopii zapasowych HA. Do pamięci trwałej trafiają daty, czas aktualizacji i ostatni odczyt licznika z badania. Integracja nie zapisuje pełnych raportów, tokenów ani VIN w zwykłych logach. Interfejs serwisu jest nieoficjalny i może ulec zmianie; nie należy traktować integracji jako jedynego potwierdzenia ważności dokumentów.
 
 ## Wycofanie
 

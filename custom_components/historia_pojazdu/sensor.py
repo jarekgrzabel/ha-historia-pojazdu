@@ -12,6 +12,7 @@ from .const import DOMAIN
 DESCRIPTIONS = (
     SensorEntityDescription(key='insurance', translation_key='insurance', device_class=SensorDeviceClass.DATE),
     SensorEntityDescription(key='inspection', translation_key='inspection', device_class=SensorDeviceClass.DATE),
+    SensorEntityDescription(key='odometer', translation_key='odometer', device_class=SensorDeviceClass.DISTANCE),
     SensorEntityDescription(key='last_success', translation_key='last_success', device_class=SensorDeviceClass.TIMESTAMP, entity_category=EntityCategory.DIAGNOSTIC),
     SensorEntityDescription(key='status', translation_key='status', entity_category=EntityCategory.DIAGNOSTIC),
 )
@@ -34,6 +35,8 @@ class VehicleSensor(CoordinatorEntity, SensorEntity):
         key = self.entity_description.key
         if key == 'status':
             return self.coordinator.data['problem'] or 'Aktualne'
+        if key == 'odometer':
+            return self.coordinator.data.get('odometer')
         value = self.coordinator.data.get(key)
         if value is None:
             return None
@@ -43,8 +46,18 @@ class VehicleSensor(CoordinatorEntity, SensorEntity):
             return None
 
     @property
+    def native_unit_of_measurement(self):
+        if self.entity_description.key == 'odometer':
+            return self.coordinator.data.get('odometer_unit')
+        return super().native_unit_of_measurement
+
+    @property
     def extra_state_attributes(self):
         key = self.entity_description.key
+        if key == 'odometer':
+            return {'data_odczytu': self.coordinator.data.get('odometer_date'),
+                    'aktualnosc': 'aktualne' if self.coordinator.data.get('odometer_fresh') else 'zapisane lub nieaktualne',
+                    'problem': self.coordinator.data.get('problem')}
         if key in ('insurance', 'inspection'):
             return {'aktualnosc': 'aktualne' if self.coordinator.data.get(f'{key}_fresh') else 'zapisane lub nieaktualne',
                     'problem': self.coordinator.data.get('problem')}

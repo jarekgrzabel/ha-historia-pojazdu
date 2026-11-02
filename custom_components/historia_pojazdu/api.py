@@ -31,7 +31,39 @@ def _date(value: Any, fmt: str) -> date | None:
         return None
 
 
-def parse_report(report: Any) -> tuple[date | None, date | None]:
+def _inspection_odometer(events: list) -> tuple[int, str, date] | None:
+    """Return latest unambiguous inspection reading, never road checks."""
+    readings = []
+    for event in events:
+        if not isinstance(event, dict) or event.get('eventType') not in ('badanie-techniczne-okresowe', 'badanie-techniczne'):
+            continue
+        day = _date(event.get('eventDate'), '%Y-%m-%d') or _date(event.get('eventDate'), '%d.%m.%Y')
+        details = event.get('eventDetails')
+        if not isinstance(details, list):
+            continue
+        fields = [item.get('value') for item in details if isinstance(item, dict)
+                  and item.get('name') in ('Odczytany stan drogomierza', 'Odczytany stan licznika')]
+        if not fields:
+            continue
+        if day is None or len(fields) != 1 or not isinstance(fields[0], str):
+            return None
+        match = re.fullmatch(r'\s*(\d+(?:[\s\u00a0\u202f]\d+)*)\s*(km|mi|mil|mile)\s*', fields[0], re.IGNORECASE)
+        if not match:
+            return None
+        number = int(re.sub(r'\s', '', match.group(1)))
+        unit = 'km' if match.group(2).lower() == 'km' else 'mi'
+        readings.append((day, number, unit))
+    if not readings:
+        return None
+    latest = max(day for day, _, _ in readings)
+    values = {(number, unit) for day, number, unit in readings if day == latest}
+    if len(values) != 1:
+        return None
+    number, unit = values.pop()
+    return number, unit, latest
+
+
+def parse_report(report: Any) -> tuple[date | None, date | None, tuple[int, str, date] | None]:
     """Return independent dates, or None for missing/ambiguous values.
 
     A newer inspection without a valid expiry invalidates an older expiry.
@@ -43,7 +75,8 @@ def parse_report(report: Any) -> tuple[date | None, date | None]:
     insurance = _date(timeline.get('insuranceExpiryDate'), '%Y-%m-%d')
     events = timeline.get('events')
     if not isinstance(events, list):
-        return insurance, None
+        return insurance, None, None
+    odometer = _inspection_odometer(events)
     candidates: list[tuple[date, date | None]] = []
     ambiguous = False
     for event in events:
@@ -73,15 +106,15 @@ def parse_report(report: Any) -> tuple[date | None, date | None]:
         else:
             candidates.append((event_date, expiry))
     if ambiguous or not candidates:
-        return insurance, None
+        return insurance, None, odometer
     newest = max(d for d, _ in candidates)
     same_day = [expiry for event_day, expiry in candidates if event_day == newest]
     # Multiple contradictory events on the same date cannot be ordered safely.
     inspection = same_day[0] if same_day and all(x == same_day[0] for x in same_day) else None
-    return insurance, inspection
+    return insurance, inspection, odometer
 
 
-async def fetch_report(registration: str, vin: str, first_registration: str) -> tuple[date | None, date | None]:
+async def fetch_report(registration: str, vin: str, first_registration: str) -> tuple[date | None, date | None, tuple[int, str, date] | None]:
     """Use a fresh TLS-verified session with bounded timeout and retry delay."""
     timeout = aiohttp.ClientTimeout(total=15, connect=6)
     for attempt in range(3):

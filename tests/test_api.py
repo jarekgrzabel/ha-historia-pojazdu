@@ -19,8 +19,24 @@ def first():
     return event('pierwsza-rejestracja-w-polsce', '2022-04-05', details=[{'name':'Termin następnego badania technicznego', 'value':'07.05.2031'}])
 
 class ParserTests(unittest.TestCase):
+    def test_odometer_latest_inspection_not_max_or_road_check(self):
+        def reading(kind, day, value):
+            return event(kind, day, details=[{'name': 'Odczytany stan drogomierza', 'value': value}])
+        values = [reading('badanie-techniczne-okresowe', '2024-01-01', '100 000 km'),
+                  reading('badanie-techniczne-okresowe', '2025-01-01', '95\u00a0000 km'),
+                  reading('odczyt-drogomierza-podczas-kontroli', '2026-01-01', '110000 km')]
+        self.assertEqual(api.parse_report(report(values))[2], (95000, 'km', date(2025, 1, 1)))
+
+    def test_odometer_missing_ambiguous_and_miles(self):
+        def reading(day, value):
+            return event('badanie-techniczne-okresowe', day, details=[{'name': 'Odczytany stan licznika', 'value': value}])
+        self.assertIsNone(api.parse_report(report([]))[2])
+        self.assertEqual(api.parse_report(report([reading('2025-01-01', '12345 mi')]))[2], (12345, 'mi', date(2025, 1, 1)))
+        self.assertIsNone(api.parse_report(report([reading('2025-01-01', 'abc km')]))[2])
+        self.assertIsNone(api.parse_report(report([reading('2025-01-01', '123 km'), reading('2025-01-01', '456 km')]))[2])
+
     def test_first_registration(self):
-        self.assertEqual(api.parse_report(report([first()])), (date(2031, 5, 6), date(2031, 5, 7)))
+        self.assertEqual(api.parse_report(report([first()])), (date(2031, 5, 6), date(2031, 5, 7), None))
 
     def test_latest_event_not_maximum_expiry(self):
         old = event('badanie-techniczne-okresowe', '2025-08-29', 'Okresowe badanie techniczne (ważne do 29.08.2029)')
@@ -40,8 +56,8 @@ class ParserTests(unittest.TestCase):
         self.assertIsNone(api.parse_report(report([first(), ev]))[1])
 
     def test_missing_or_invalid_fields(self):
-        self.assertEqual(api.parse_report(report([], 'invalid')), (None, None))
-        self.assertEqual(api.parse_report({'timelineData': {'insuranceExpiryDate': '2031-05-06'}}), (date(2031,5,6), None))
+        self.assertEqual(api.parse_report(report([], 'invalid')), (None, None, None))
+        self.assertEqual(api.parse_report({'timelineData': {'insuranceExpiryDate': '2031-05-06'}}), (date(2031,5,6), None, None))
         with self.assertRaises(api.FetchError):
             api.parse_report({'error': 'unavailable'})
 

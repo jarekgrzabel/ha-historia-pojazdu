@@ -25,6 +25,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.entry = entry
         self.store = Store(hass, 1, f'{DOMAIN}.{entry.entry_id}')
         self.data = {'insurance': None, 'inspection': None, 'last_success': None,
+                     'odometer': None, 'odometer_unit': None, 'odometer_date': None, 'odometer_fresh': False,
                      'insurance_fresh': False, 'inspection_fresh': False,
                      'problem': 'Oczekiwanie na aktualizację'}
 
@@ -38,19 +39,26 @@ class VehicleCoordinator(DataUpdateCoordinator):
             for key in ('insurance', 'inspection', 'last_success'):
                 if isinstance(saved.get(key), str):
                     self.data[key] = saved[key]
+            if (isinstance(saved.get('odometer'), int) and not isinstance(saved.get('odometer'), bool)
+                    and saved.get('odometer_unit') in ('km', 'mi') and isinstance(saved.get('odometer_date'), str)):
+                for key in ('odometer', 'odometer_unit', 'odometer_date'):
+                    self.data[key] = saved[key]
         # Restored values are explicitly marked stale until a successful fetch.
 
     async def _async_update_data(self):
         result = dict(self.data)
-        result.update(insurance_fresh=False, inspection_fresh=False)
+        result.update(insurance_fresh=False, inspection_fresh=False, odometer_fresh=False)
         try:
-            insurance, inspection = await fetch_report(
+            insurance, inspection, odometer = await fetch_report(
                 self.entry.data[CONF_REGISTRATION], self.entry.data[CONF_VIN],
                 self.entry.data[CONF_FIRST_REGISTRATION])
         except FetchError as exc:
             result['problem'] = str(exc)
             return result
         missing = []
+        if odometer is not None:
+            value, unit, day = odometer
+            result.update(odometer=value, odometer_unit=unit, odometer_date=day.isoformat(), odometer_fresh=True)
         for key, value, label in (('insurance', insurance, 'OC'), ('inspection', inspection, 'badania technicznego')):
             if value is None:
                 missing.append(label)
@@ -62,10 +70,10 @@ class VehicleCoordinator(DataUpdateCoordinator):
         else:
             result['problem'] = None
             result['last_success'] = dt_util.utcnow().isoformat()
-        # Only dates and timestamp are persisted; never the report or session tokens.
-        if insurance is not None or inspection is not None:
+        # Persist selected values only, never the report or session tokens.
+        if insurance is not None or inspection is not None or odometer is not None:
             try:
-                await self.store.async_save({k: result[k] for k in ('insurance', 'inspection', 'last_success')})
+                await self.store.async_save({k: result[k] for k in ('insurance', 'inspection', 'last_success', 'odometer', 'odometer_unit', 'odometer_date')})
             except (OSError, ValueError):
                 result['problem'] = ((result['problem'] + '; ') if result['problem'] else '') + 'Nie udało się zapisać danych'
         return result

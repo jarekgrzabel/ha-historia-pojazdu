@@ -39,6 +39,8 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.coord = integration.VehicleCoordinator(None, self.entry)
 
     async def update(self, return_value=None, side_effect=None):
+        if isinstance(return_value, tuple) and len(return_value) == 2:
+            return_value += (None,)
         with patch.object(integration, 'fetch_report', new=AsyncMock(return_value=return_value, side_effect=side_effect)):
             self.coord.data = await self.coord._async_update_data()
         return self.coord.data
@@ -56,6 +58,17 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((failed['insurance'], failed['inspection'], failed['last_success']), ('2031-05-06', '2031-05-07', timestamp))
         self.assertFalse(failed['inspection_fresh'])
         self.assertEqual(failed['problem'], 'Pobieranie nieudane')
+
+    async def test_odometer_survives_restart_and_failure(self):
+        await self.update((date(2031,5,6), date(2031,5,7), (12345, 'km', date(2025,1,2))))
+        restored = integration.VehicleCoordinator(None, self.entry)
+        await restored.restore()
+        self.assertEqual(restored.data['odometer'], 12345)
+        self.assertEqual(restored.data['odometer_date'], '2025-01-02')
+        self.assertFalse(restored.data['odometer_fresh'])
+        self.coord = restored
+        result = await self.update(side_effect=integration.FetchError('błąd'))
+        self.assertEqual(result['odometer'], 12345)
 
     async def test_partial_retains_missing_and_does_not_advance_full_success(self):
         before = await self.update((date(2031,5,6), date(2031,5,7)))
