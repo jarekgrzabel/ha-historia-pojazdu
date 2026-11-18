@@ -3,21 +3,35 @@
     "step": {
       "user": {
         "title": "Historia Pojazdu",
-        "description": "Podaj dane pojazdu. Data pierwszej rejestracji w formacie RRRR-MM-DD.",
+        "description": "Podaj dane pojazdu z dowodu rejestracyjnego.",
         "data": {
           "name": "Nazwa",
           "registration": "Numer rejestracyjny",
           "vin": "VIN",
           "first_registration": "Data pierwszej rejestracji"
+        },
+        "data_description": {
+          "first_registration": "Pole B dowodu rejestracyjnego. Wpisz np. 2026-11-11 lub 11.11.2026 albo wybierz datę w kalendarzu."
         }
       }
     },
     "error": {
-      "invalid_date": "Podaj poprawną datę pierwszej rejestracji w formacie RRRR-MM-DD.",
-      "invalid_data": "Sprawdź nazwę, numer rejestracyjny i VIN."
+      "invalid_date": "Podaj poprawną datę pierwszej rejestracji, np. 2026-11-11 lub 11.11.2026.",
+      "future_date": "Data pierwszej rejestracji nie może być w przyszłości.",
+      "invalid_name": "Podaj nazwę pojazdu.",
+      "invalid_registration": "Podaj numer rejestracyjny z dowodu.",
+      "invalid_vin": "VIN musi mieć 17 znaków. Litery I, O i Q nie występują w VIN."
     },
     "abort": {
       "already_configured": "Ten pojazd jest już skonfigurowany."
+    }
+  },
+  "selector": {
+    "first_registration_mode": {
+      "choices": {
+        "manual": "Wpisz datę",
+        "calendar": "Kalendarz"
+      }
     }
   },
   "entity": {

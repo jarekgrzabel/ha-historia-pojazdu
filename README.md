@@ -8,7 +8,7 @@ Nieoficjalna integracja odczytuje datę ważności OC i następnego badania tech
 
 1. Utwórz kopię zapasową Home Assistant i zachowaj poprzednią wersję katalogu `custom_components/historia_pojazdu`, jeśli istnieje.
 2. Zainstaluj katalog `custom_components/historia_pojazdu` z tego repozytorium w analogicznym katalogu konfiguracji Home Assistant, albo dodaj to repozytorium jako niestandardowe repozytorium integracji HACS. Przy pierwszej instalacji konieczne może być ponowne uruchomienie HA.
-3. W Ustawieniach → Urządzenia i usługi → Dodaj integrację wybierz Historia Pojazdu. Dodaj osobny wpis dla każdego samochodu, podając nazwę, rejestrację, VIN i datę pierwszej rejestracji w formacie RRRR-MM-DD.
+3. W Ustawieniach → Urządzenia i usługi → Dodaj integrację wybierz Historia Pojazdu. Dodaj osobny wpis dla każdego samochodu. Podaj nazwę, rejestrację i VIN. Datę pierwszej rejestracji z pola B dowodu możesz wpisać w formacie RRRR-MM-DD lub DD.MM.RRRR albo wybrać w kalendarzu, jeśli Twoja wersja Home Assistanta udostępnia tę opcję. Jeśli któreś pole wymaga poprawki, formularz zachowa wpisane dane.
 4. Sprawdź utworzone encje oraz ich stan pobierania. Odrębną automatyzację powiadomień skonfiguruj dopiero po sprawdzeniu nazw encji i dostępności właściwej akcji powiadomienia.
 
 Integracja udostępnia sensory ważności OC, następnego badania technicznego, ostatniej w pełni udanej aktualizacji i stanu pobierania oraz przycisk Odśwież dane. Identyfikatory są stabilne w obrębie wpisu integracji. Wartości pobierane są podczas uruchomienia wpisu w tle i co 24 godziny, a także po naciśnięciu przycisku. Godzina aktualizacji zależy od działania HA; udane jednorazowe pobranie nie dowodzi działania całego dobowego harmonogramu.

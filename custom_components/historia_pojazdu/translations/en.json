@@ -1,0 +1,61 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Historia Pojazdu",
+        "description": "Enter the vehicle details from its registration certificate.",
+        "data": {
+          "name": "Name",
+          "registration": "Registration number",
+          "vin": "VIN",
+          "first_registration": "Date of first registration"
+        },
+        "data_description": {
+          "first_registration": "Field B on the registration certificate. Enter a date such as 2026-11-11 or 11.11.2026, or select it in the calendar."
+        }
+      }
+    },
+    "error": {
+      "invalid_date": "Enter a valid first registration date, such as 2026-11-11 or 11.11.2026.",
+      "future_date": "The first registration date cannot be in the future.",
+      "invalid_name": "Enter a name for the vehicle.",
+      "invalid_registration": "Enter the registration number from the certificate.",
+      "invalid_vin": "The VIN must have 17 characters and cannot contain the letters I, O, or Q."
+    },
+    "abort": {
+      "already_configured": "This vehicle is already configured."
+    }
+  },
+  "selector": {
+    "first_registration_mode": {
+      "choices": {
+        "manual": "Enter date",
+        "calendar": "Calendar"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "insurance": {
+        "name": "Insurance expiry"
+      },
+      "inspection": {
+        "name": "Next vehicle inspection"
+      },
+      "last_success": {
+        "name": "Last successful update"
+      },
+      "status": {
+        "name": "Data retrieval status"
+      },
+      "odometer": {
+        "name": "Last inspection odometer reading"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Refresh data"
+      }
+    }
+  }
+}
